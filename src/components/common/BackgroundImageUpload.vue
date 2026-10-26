@@ -30,6 +30,7 @@
       type="file"
       class="hidden"
       accept="image/*"
+      data-testid="background-image-input"
       @change="handleFileUpload"
     />
   </div>
@@ -87,14 +88,13 @@ const handleFileUpload = async (event: Event) => {
     try {
       const uploadedPath = await uploadFile(file)
       if (uploadedPath) {
-        // Set the value to the API view URL with subfolder parameter
         const params = new URLSearchParams({
           filename: uploadedPath,
           type: 'input',
           subfolder: 'backgrounds'
         })
         appendCloudResParam(params, file.name)
-        modelValue.value = `/api/view?${params.toString()}`
+        modelValue.value = api.apiURL(`/view?${params.toString()}`)
       }
     } catch (error) {
       useToast().warning(

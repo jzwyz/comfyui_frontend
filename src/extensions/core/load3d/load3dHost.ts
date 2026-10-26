@@ -11,7 +11,7 @@ function resolveImageURL(uploadPath: string): string {
   const url = ROOT_FOLDERS.has(subfolder)
     ? Load3dUtils.getResourceURL('', filename, subfolder)
     : Load3dUtils.getResourceURL(subfolder, filename, 'input')
-  return url.startsWith('/api') ? url : '/api' + url
+  return api.apiURL(url)
 }
 
 export const load3dHost: Load3dHost = {

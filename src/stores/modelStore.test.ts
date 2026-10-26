@@ -933,6 +933,20 @@ describe('useModelStore', () => {
     })
   })
 
+  describe('model preview urls', () => {
+    it('builds the preview endpoint through the API URL helper', async () => {
+      enableMocks(true)
+      store = useModelStore()
+      await store.loadModelFolders()
+      const folderStore = await store.getLoadedModelFolder('checkpoints')
+      const model = folderStore!.models['0/sdxl.safetensors']
+
+      expect(getModelPreviewUrl(model)).toBe(
+        'http://localhost:8188/experiment/models/preview/checkpoints/0/sdxl.webp'
+      )
+    })
+  })
+
   describe('API switching functionality', () => {
     it('should use experimental API for complete workflow when the assets flag is off', async () => {
       enableMocks(false)

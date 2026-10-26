@@ -1,6 +1,14 @@
 import { fromPartial } from '@total-typescript/shoehorn'
 import { computed, nextTick, ref } from 'vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  assert,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi
+} from 'vitest'
 
 import type { AssetItem } from '@/platform/assets/schemas/assetSchema'
 import { useMissingMediaStore } from '@/platform/workflowErrors/missingMedia/missingMediaStore'
@@ -8,6 +16,7 @@ import { useSettingStore } from '@/platform/settings/settingStore'
 import { resolveOutputAssetItems } from '@/platform/assets/utils/outputAssetUtil'
 import { useWidgetSelectItems } from '@/renderer/extensions/vueNodes/widgets/composables/useWidgetSelectItems'
 import type { UseWidgetSelectItemsOptions } from '@/renderer/extensions/vueNodes/widgets/composables/useWidgetSelectItems'
+import { api } from '@/scripts/api'
 
 const mockAssetsData = vi.hoisted(() => ({ items: [] as AssetItem[] }))
 
@@ -127,6 +136,82 @@ describe('useWidgetSelectItems', () => {
   beforeEach(() => {
     mockMediaAssets = createMockMediaAssets()
     mockAssetsData.items = []
+  })
+
+  describe('preview URLs behind a reverse proxy', () => {
+    it.for([
+      { base: '', kind: 'image', path: '/api/view' },
+      { base: '/comfyui', kind: 'image', path: '/comfyui/api/view' },
+      {
+        base: '/nested/comfyui',
+        kind: 'image',
+        path: '/nested/comfyui/api/view'
+      },
+      { base: '/comfyui', kind: 'video', path: '/comfyui/api/view' },
+      { base: '/comfyui', kind: 'audio', path: '/comfyui/api/view' }
+    ] as const)(
+      'uses $base for $kind input previews',
+      ({ base, kind, path }) => {
+        const originalBase = api.api_base
+        onTestFinished(() => {
+          api.api_base = originalBase
+        })
+        api.api_base = base
+        const filename = 'backgrounds/测试 image #1.png'
+        const { dropdownItems } = useWidgetSelectItems(
+          createDefaultOptions({
+            values: () => [filename],
+            modelValue: ref(filename),
+            assetKind: () => kind
+          })
+        )
+
+        const previewUrl = dropdownItems.value[0].preview_url
+        assert.exists(previewUrl)
+        const preview = new URL(previewUrl, 'http://localhost:3000')
+        expect(preview.pathname).toBe(path)
+        expect(Object.fromEntries(preview.searchParams)).toEqual({
+          filename,
+          type: 'input'
+        })
+      }
+    )
+
+    it.for([
+      { value: 'missing.png', type: 'input' },
+      { value: 'missing.png [output]', type: 'output' }
+    ])('prefixes missing $type previews', ({ value, type }) => {
+      const originalBase = api.api_base
+      onTestFinished(() => {
+        api.api_base = originalBase
+      })
+      api.api_base = '/comfyui'
+      const { dropdownItems } = useWidgetSelectItems(
+        createDefaultOptions({ values: () => [], modelValue: ref(value) })
+      )
+
+      expect(dropdownItems.value[0].preview_url).toBe(
+        `/comfyui/api/view?filename=missing.png&type=${type}`
+      )
+    })
+
+    it('prefixes generated output previews without an explicit preview URL', () => {
+      const originalBase = api.api_base
+      onTestFinished(() => {
+        api.api_base = originalBase
+      })
+      api.api_base = '/comfyui'
+      mockMediaAssets.items.value = [
+        makeResolvedOutput('output-1', 'result.png')
+      ]
+      const { dropdownItems } = useWidgetSelectItems(
+        createDefaultOptions({ values: () => [], modelValue: ref(undefined) })
+      )
+
+      expect(dropdownItems.value[0].preview_url).toBe(
+        '/comfyui/api/view?filename=result.png&type=output'
+      )
+    })
   })
 
   describe('dropdownItems', () => {

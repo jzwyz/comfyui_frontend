@@ -176,7 +176,9 @@ export function getModelPreviewUrl(model: ComfyModelDef): string {
   const extension = model.file_name.split('.').pop()
   const filename = model.file_name.replace(`.${extension}`, '.webp')
   const encodedFilename = encodeURIComponent(filename).replace(/%2F/g, '/')
-  return `/api/experiment/models/preview/${encodeURIComponent(model.directory)}/${model.path_index}/${encodedFilename}`
+  return api.apiURL(
+    `/experiment/models/preview/${encodeURIComponent(model.directory)}/${model.path_index}/${encodedFilename}`
+  )
 }
 
 /**
